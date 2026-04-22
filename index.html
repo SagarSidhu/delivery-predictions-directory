@@ -228,19 +228,21 @@
 
     .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 
-    .tag {
-      padding: 2px 10px;
-      background: var(--tag-bg);
-      color: var(--tag-text);
+    .tool-cat-badge {
+      padding: 3px 10px;
       border-radius: 12px;
       font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .tag:hover { background: #e2e8f0; }
-    .tag.active-tag { background: var(--accent); color: white; }
+    .tool-cat-badge.cat-analytics { background: #eff6ff; color: #1d4ed8; }
+    .tool-cat-badge.cat-configuration { background: #f0fdf4; color: #15803d; }
+    .tool-cat-badge.cat-observability { background: #fef3c7; color: #b45309; }
+    .tool-cat-badge.cat-productivity { background: #f5f3ff; color: #7c3aed; }
+    .tool-cat-badge.cat-development { background: #fce7f3; color: #be185d; }
 
     .card-actions {
       position: absolute;
@@ -492,7 +494,7 @@
 
 <div class="header">
   <div class="header-inner">
-    <h1>🧭 Delivery Predictions — Tool Directory</h1>
+    <h1>🧭 Delivery Predictions — Tool Directory <a href="https://github.com/SagarSidhu/delivery-predictions-directory" target="_blank" style="font-size:13px;font-weight:400;color:var(--muted);text-decoration:none;margin-left:8px;">📂 GitHub</a></h1>
     <div class="header-actions">
       <div class="user-info" id="userInfo"></div>
       <button class="btn-primary" onclick="openModal()">+ Add Tool</button>
@@ -509,6 +511,14 @@
       <button class="filter-btn" data-category="shared">🌐 Shared Tools</button>
       <button class="filter-btn" data-category="favourites" id="favFilterBtn" style="display:none">⭐ My Favourites</button>
     </div>
+    <select class="owner-filter" id="toolCatFilter">
+      <option value="">All types</option>
+      <option value="analytics">📊 Analytics</option>
+      <option value="configuration">⚙️ Configuration</option>
+      <option value="observability">📡 Observability</option>
+      <option value="productivity">📝 Productivity</option>
+      <option value="development">🛠 Development</option>
+    </select>
     <select class="owner-filter" id="ownerFilter">
       <option value="">All owners</option>
     </select>
@@ -568,9 +578,14 @@
       </div>
 
       <div class="form-group">
-        <label>Tags</label>
-        <div class="hint">Comma-separated (e.g. config, analysis, rollout)</div>
-        <input type="text" id="fTags" placeholder="config, visualization, observability">
+        <label>Type *</label>
+        <select id="fToolCat" required>
+          <option value="analytics">📊 Analytics</option>
+          <option value="configuration">⚙️ Configuration</option>
+          <option value="observability">📡 Observability</option>
+          <option value="productivity">📝 Productivity</option>
+          <option value="development">🛠 Development</option>
+        </select>
       </div>
 
       <div class="form-actions">
@@ -586,7 +601,7 @@
   let allTools = [];
   let currentUser = null;
   let activeCategory = "all";
-  let activeTag = null;
+  let activeToolCat = "";
   let favourites = new Set(JSON.parse(localStorage.getItem("tool-favs") || "[]"));
   let currentSort = "newest";
 
@@ -650,6 +665,14 @@
     return currentUser && ADMIN_EMAILS.includes(currentUser.email);
   }
 
+  const TOOL_CAT_META = {
+    analytics:     { icon: "📊", label: "Analytics" },
+    configuration: { icon: "⚙️", label: "Configuration" },
+    observability: { icon: "📡", label: "Observability" },
+    productivity:  { icon: "📝", label: "Productivity" },
+    development:   { icon: "🛠", label: "Development" }
+  };
+
   function toggleFav(toolId) {
     if (favourites.has(toolId)) {
       favourites.delete(toolId);
@@ -669,7 +692,8 @@
       github: "https://github.com/shopify-playground/magellan-config-v2-editor",
       category: "team",
       created_by: "Elijah Adeyale",
-      tags: ["config", "visualization", "validation", "magellan"]
+      tool_cat: "configuration",
+      team_tag: "platform"
     },
     {
       name: "Predictions Search Utility",
@@ -678,7 +702,8 @@
       github: "https://github.com/Shopify/streamlit-service",
       category: "team",
       created_by: "Elijah Adeyale",
-      tags: ["analysis", "predictions", "streamlit", "bigquery", "coverage"]
+      tool_cat: "analytics",
+      team_tag: "platform"
     },
     {
       name: "V2 Prediction Rollout Dashboard",
@@ -687,7 +712,8 @@
       github: "https://github.com/shopify-playground/v2-prediction-rollout-dashboard",
       category: "team",
       created_by: "Mario Muniz",
-      tags: ["observability", "rollout", "dashboard", "v2-config"]
+      tool_cat: "observability",
+      team_tag: "platform"
     },
     {
       name: "Magellan Config V1/V2 Comparison",
@@ -696,7 +722,8 @@
       github: "",
       category: "team",
       created_by: "Sagar Sidhu",
-      tags: ["config", "comparison", "design"]
+      tool_cat: "configuration",
+      team_tag: "platform"
     },
     {
       name: "Bug Hunt",
@@ -705,7 +732,7 @@
       github: "",
       category: "shared",
       created_by: "Mori Ahmadi",
-      tags: ["testing", "bug-hunt", "qa"]
+      tool_cat: "development"
     },
     {
       name: "Write",
@@ -714,7 +741,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["docs", "markdown", "collaboration"]
+      tool_cat: "productivity"
     },
     {
       name: "Markdown Comments",
@@ -723,7 +750,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["docs", "markdown", "review"]
+      tool_cat: "productivity"
     },
     {
       name: "Skills Catalog",
@@ -732,7 +759,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["skills", "catalog", "discovery"]
+      tool_cat: "development"
     },
     {
       name: "OAuth Flow Helper",
@@ -741,7 +768,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["oauth", "auth", "development"]
+      tool_cat: "development"
     },
     {
       name: "Delivery Predictions Funnel",
@@ -750,7 +777,8 @@
       github: "https://github.com/shopify-playground/st-data-science",
       category: "team",
       created_by: "Siraj Ali",
-      tags: ["funnel", "analysis", "dashboard", "data-science"]
+      tool_cat: "analytics",
+      team_tag: "data"
     },
     {
       name: "Barriers to Delivery Predictions",
@@ -759,7 +787,8 @@
       github: "",
       category: "team",
       created_by: "Shwetha Shyam",
-      tags: ["analysis", "coverage", "barriers", "predictions"]
+      tool_cat: "analytics",
+      team_tag: "product-management"
     },
     {
       name: "DHM Metrics — Prediction Performance & Accuracy",
@@ -768,7 +797,8 @@
       github: "",
       category: "team",
       created_by: "Amanda Billingsley",
-      tags: ["dhm", "accuracy", "metrics", "monorail", "dashboard"]
+      tool_cat: "analytics",
+      team_tag: "data"
     },
     {
       name: "DHM Drift Monitoring",
@@ -777,7 +807,8 @@
       github: "",
       category: "team",
       created_by: "Amanda Billingsley",
-      tags: ["dhm", "drift", "monitoring", "data-quality"]
+      tool_cat: "observability",
+      team_tag: "data"
     },
     {
       name: "Drift Detection Runs",
@@ -786,7 +817,8 @@
       github: "",
       category: "team",
       created_by: "Amanda Billingsley",
-      tags: ["dhm", "drift", "monitoring", "runs"]
+      tool_cat: "observability",
+      team_tag: "data"
     },
     {
       name: "Impact Review Copilot",
@@ -795,7 +827,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["mastery", "review", "contributions", "self-review"]
+      tool_cat: "productivity"
     },
     {
       name: "Chronicle",
@@ -804,7 +836,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["mastery", "github", "contributions", "self-review"]
+      tool_cat: "productivity"
     },
     {
       name: "Radical Candor",
@@ -813,7 +845,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["mastery", "review", "shopify-os", "self-review"]
+      tool_cat: "productivity"
     },
     {
       name: "Mastery Feedback",
@@ -822,7 +854,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["mastery", "review", "feedback", "self-review"]
+      tool_cat: "productivity"
     },
     {
       name: "Peer Review Copilot",
@@ -831,7 +863,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["mastery", "peer-review", "self-review"]
+      tool_cat: "productivity"
     },
     {
       name: "Weekly Recap",
@@ -840,7 +872,7 @@
       github: "",
       category: "shared",
       created_by: "Quick Team",
-      tags: ["productivity", "standup", "recap", "weekly"]
+      tool_cat: "productivity"
     },
     {
       name: "Skill Decoder",
@@ -849,7 +881,7 @@
       github: "",
       category: "shared",
       created_by: "Anderson Ferreira",
-      tags: ["skills", "playbook", "documentation", "ai"]
+      tool_cat: "development"
     },
     {
       name: "AvaTax Migration Presentation",
@@ -858,7 +890,7 @@
       github: "",
       category: "shared",
       created_by: "Talha Syed",
-      tags: ["taxes", "presentation", "migration"]
+      tool_cat: "productivity"
     }
   ];
 
@@ -914,15 +946,7 @@
     select.value = current;
   }
 
-  function buildTagCloud() {
-    // Tags are still on cards and searchable, just no top-level cloud
-  }
-
-  function toggleTag(tag) {
-    activeTag = activeTag === tag ? null : tag;
-    buildTagCloud();
-    render();
-  }
+  function buildTagCloud() {}
 
   function getFilteredTools() {
     const query = document.getElementById("searchInput").value.toLowerCase().trim();
@@ -939,14 +963,13 @@
       // Favourites filter
       if (activeCategory === "favourites" && !favourites.has(t.id)) return false;
 
-      // Tag filter
-      if (activeTag && !(t.tags || []).includes(activeTag)) return false;
+      // Tool category filter
+      if (activeToolCat && t.tool_cat !== activeToolCat) return false;
 
       // Search
       if (query) {
         const haystack = [
-          t.name, t.description, t.created_by, t.url,
-          ...(t.tags || [])
+          t.name, t.description, t.created_by, t.url, t.tool_cat || ""
         ].join(" ").toLowerCase();
         return haystack.includes(query);
       }
@@ -1039,9 +1062,10 @@
   }
 
   function renderCard(tool) {
-    const tags = (tool.tags || []).map(t =>
-      `<span class="tag ${activeTag === t ? 'active-tag' : ''}" onclick="toggleTag('${t}')">${t}</span>`
-    ).join("");
+    const catMeta = TOOL_CAT_META[tool.tool_cat];
+    const catBadge = catMeta
+      ? `<span class="tool-cat-badge cat-${tool.tool_cat}">${catMeta.icon} ${catMeta.label}</span>`
+      : "";
 
     const githubLink = tool.github
       ? `<a href="${tool.github}" target="_blank" title="GitHub repo">📂 Repo</a>`
@@ -1076,7 +1100,7 @@
           <span class="meta-item">👤 ${tool.created_by}</span>
           ${githubLink ? `<span class="meta-item">${githubLink}</span>` : ""}
         </div>
-        <div class="card-tags">${tags}</div>
+        <div class="card-tags">${catBadge}</div>
       </div>`;
   }
 
@@ -1112,7 +1136,7 @@
     document.getElementById("fGithub").value = tool.github || "";
     document.getElementById("fCategory").value = tool.category;
     document.getElementById("fCreatedBy").value = tool.created_by;
-    document.getElementById("fTags").value = (tool.tags || []).join(", ");
+    document.getElementById("fToolCat").value = tool.tool_cat || "analytics";
     document.getElementById("modalTitle").textContent = "Edit Tool";
     document.getElementById("submitBtn").textContent = "Save Changes";
     document.getElementById("modalOverlay").classList.add("open");
@@ -1128,12 +1152,6 @@
   async function saveTool(e) {
     e.preventDefault();
 
-    const rawTags = document.getElementById("fTags").value;
-    const tags = rawTags
-      .split(",")
-      .map(t => t.trim().toLowerCase())
-      .filter(Boolean);
-
     const data = {
       name: document.getElementById("fName").value.trim(),
       url: document.getElementById("fUrl").value.trim(),
@@ -1141,7 +1159,7 @@
       github: document.getElementById("fGithub").value.trim(),
       category: document.getElementById("fCategory").value,
       created_by: document.getElementById("fCreatedBy").value.trim(),
-      tags
+      tool_cat: document.getElementById("fToolCat").value
     };
 
     const editId = document.getElementById("editId").value;
@@ -1176,6 +1194,12 @@
     });
     document.getElementById("sortSelect").addEventListener("change", (e) => {
       currentSort = e.target.value;
+      render();
+    });
+    document.getElementById("toolCatFilter").addEventListener("change", (e) => {
+      activeToolCat = e.target.value;
+      pagination.team.page = 1;
+      pagination.shared.page = 1;
       render();
     });
 
