@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Predictions — Tool Directory</title>
+  <script src="/client/quick.js"></script>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --card: #ffffff;
+      --border: #e2e2e2;
+      --text: #1a1a1a;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --green: #16a34a;
+      --green-light: #f0fdf4;
+      --purple: #7c3aed;
+      --purple-light: #f5f3ff;
+      --orange: #ea580c;
+      --orange-light: #fff7ed;
+      --tag-bg: #f1f5f9;
+      --tag-text: #475569;
+      --danger: #dc2626;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .user-info {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-info img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Controls bar */
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-box:focus { border-color: var(--accent); }
+
+    .filter-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    select.owner-filter {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--card);
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Category sections */
+    .category-section { margin-bottom: 32px; }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .category-header h2 { font-size: 16px; font-weight: 600; }
+
+    .category-badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .badge-team { background: var(--accent-light); color: var(--accent); }
+    .badge-shared { background: var(--purple-light); color: var(--purple); }
+
+    .count-badge {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* Card grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      position: relative;
+    }
+
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: #d0d0d0; }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-title a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .card-title a:hover { text-decoration: underline; }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .card-meta a { color: var(--muted); text-decoration: none; }
+    .card-meta a:hover { color: var(--accent); text-decoration: underline; }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .tag {
+      padding: 2px 10px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .tag:hover { background: #e2e8f0; }
+    .tag.active-tag { background: var(--accent); color: white; }
+
+    .card-actions {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .card:hover .card-actions { opacity: 1; }
+
+    .card-action-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .card-action-btn:hover { background: var(--bg); }
+    .card-action-btn.delete:hover { background: #fef2f2; border-color: var(--danger); color: var(--danger); }
+
+    /* Favourite star */
+    .fav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+      transition: transform 0.15s;
+      filter: grayscale(1) opacity(0.35);
+    }
+
+    .fav-btn:hover { transform: scale(1.2); filter: grayscale(0) opacity(0.7); }
+    .fav-btn.is-fav { filter: none; }
+
+    .fav-count {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .card.is-favourited { border-left: 3px solid #f59e0b; }
+
+    /* Primary button */
+    .btn-primary {
+      padding: 10px 18px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { background: #1d4ed8; }
+
+    .btn-secondary {
+      padding: 8px 14px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-secondary:hover { background: var(--bg); }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px;
+      width: 520px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+
+    .modal h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+
+    .form-group .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group textarea { resize: vertical; min-height: 60px; }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+
+    .empty-state p { font-size: 14px; margin-top: 8px; }
+
+    .loading {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Collapsible sections */
+    .section-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+    }
+
+    .section-toggle:hover { background: var(--bg); color: var(--text); }
+
+    .section-body.collapsed { display: none; }
+
+    /* Sort control */
+    .sort-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--card);
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .page-btn.active-page { background: var(--accent); color: white; border-color: var(--accent); }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+    .page-btn:disabled:hover { border-color: var(--border); color: var(--text); }
+
+    .page-size-select {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      background: var(--card);
+      cursor: pointer;
+      outline: none;
+      color: var(--muted);
+    }
+
+    .page-info {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      .card-grid { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+      .search-box { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1>🧭 Delivery Predictions — Tool Directory</h1>
+    <div class="header-actions">
+      <div class="user-info" id="userInfo"></div>
+      <button class="btn-primary" onclick="openModal()">+ Add Tool</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="controls">
+    <input type="text" class="search-box" id="searchInput" placeholder="Search by name, description, tag, or owner…">
+    <div class="filter-group" id="categoryFilters">
+      <button class="filter-btn active" data-category="all">All</button>
+      <button class="filter-btn" data-category="team">🔬 Team Tools</button>
+      <button class="filter-btn" data-category="shared">🌐 Shared Tools</button>
+      <button class="filter-btn" data-category="favourites" id="favFilterBtn" style="display:none">⭐ My Favourites</button>
+    </div>
+    <select class="owner-filter" id="ownerFilter">
+      <option value="">All owners</option>
+    </select>
+    <select class="sort-select" id="sortSelect">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="alpha">A → Z</option>
+      <option value="alpha-desc">Z → A</option>
+    </select>
+  </div>
+
+
+  <div id="content">
+    <div class="loading">Loading tools…</div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="modalTitle">Add a Tool</h2>
+    <form id="toolForm" onsubmit="saveTool(event)">
+      <input type="hidden" id="editId" value="">
+
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" id="fName" required placeholder="e.g. Magellan Config V2 Editor">
+      </div>
+
+      <div class="form-group">
+        <label>URL *</label>
+        <input type="url" id="fUrl" required placeholder="https://my-tool.quick.shopify.io">
+      </div>
+
+      <div class="form-group">
+        <label>Description *</label>
+        <textarea id="fDesc" required placeholder="What does this tool do?"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>GitHub Repo URL</label>
+        <div class="hint">Link to the source repo if available</div>
+        <input type="url" id="fGithub" placeholder="https://github.com/shopify-playground/my-tool">
+      </div>
+
+      <div class="form-group">
+        <label>Category *</label>
+        <select id="fCategory" required>
+          <option value="team">🔬 Team Tool (Delivery Predictions)</option>
+          <option value="shared">🌐 Shared Tool</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Created By *</label>
+        <input type="text" id="fCreatedBy" required placeholder="Your name">
+      </div>
+
+      <div class="form-group">
+        <label>Tags</label>
+        <div class="hint">Comma-separated (e.g. config, analysis, rollout)</div>
+        <input type="text" id="fTags" placeholder="config, visualization, observability">
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="submitBtn">Add Tool</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const tools = quick.db.collection("tools");
+  let allTools = [];
+  let currentUser = null;
+  let activeCategory = "all";
+  let activeTag = null;
+  let favourites = new Set(JSON.parse(localStorage.getItem("tool-favs") || "[]"));
+  let currentSort = "newest";
+
+  // Independent pagination state per section
+  const pagination = {
+    team: { page: 1, perPage: parseInt(localStorage.getItem("pp-team") || "6") },
+    shared: { page: 1, perPage: parseInt(localStorage.getItem("pp-shared") || "6") }
+  };
+
+  // Collapsed state per section
+  const collapsed = {
+    team: localStorage.getItem("col-team") === "true",
+    shared: localStorage.getItem("col-shared") === "true"
+  };
+
+  function toggleCollapse(type) {
+    collapsed[type] = !collapsed[type];
+    localStorage.setItem("col-" + type, collapsed[type]);
+    render();
+  }
+
+  function setPage(type, page) {
+    pagination[type].page = page;
+    render();
+  }
+
+  function setPerPage(type, val) {
+    pagination[type].perPage = val;
+    pagination[type].page = 1;
+    localStorage.setItem("pp-" + type, val);
+    render();
+  }
+
+  function sortTools(items) {
+    return [...items].sort((a, b) => {
+      switch (currentSort) {
+        case "newest":
+          return (b.created_at || "").localeCompare(a.created_at || "");
+        case "oldest":
+          return (a.created_at || "").localeCompare(b.created_at || "");
+        case "alpha":
+          return a.name.localeCompare(b.name);
+        case "alpha-desc":
+          return b.name.localeCompare(a.name);
+        default:
+          return 0;
+      }
+    });
+  }
+
+  function saveFavourites() {
+    localStorage.setItem("tool-favs", JSON.stringify([...favourites]));
+    // Show/hide the favourites filter button
+    document.getElementById("favFilterBtn").style.display = favourites.size > 0 ? "" : "none";
+  }
+
+  // Global admin — can edit/delete any tool
+  const ADMIN_EMAILS = ["sagar.sidhu@shopify.com"];
+
+  function isAdmin() {
+    return currentUser && ADMIN_EMAILS.includes(currentUser.email);
+  }
+
+  function toggleFav(toolId) {
+    if (favourites.has(toolId)) {
+      favourites.delete(toolId);
+    } else {
+      favourites.add(toolId);
+    }
+    saveFavourites();
+    render();
+  }
+
+  // Seed data — only inserted once
+  const SEED_DATA = [
+    {
+      name: "Magellan Config V2 Editor",
+      url: "https://delivery-prediction-config-editor.quick.shopify.io/",
+      description: "Visualize, validate, diff, and create PRs for Magellan prediction configs. Side-by-side comparison, schema validation, direct PR creation to magellan-data-uploader.",
+      github: "https://github.com/shopify-playground/magellan-config-v2-editor",
+      category: "team",
+      created_by: "Elijah Adeyale",
+      tags: ["config", "visualization", "validation", "magellan"]
+    },
+    {
+      name: "Predictions Search Utility",
+      url: "https://delivery-prediction-search-utility.lit.shopify.io/",
+      description: "Streamlit tool with 3D globe visualizer, per-country accuracy breakdowns, BigQuery query builder, and DHM observability. Answers 'is this country ready?'",
+      github: "https://github.com/Shopify/streamlit-service",
+      category: "team",
+      created_by: "Elijah Adeyale",
+      tags: ["analysis", "predictions", "streamlit", "bigquery", "coverage"]
+    },
+    {
+      name: "V2 Prediction Rollout Dashboard",
+      url: "https://observe.shopify.io/d/promise-global-predictions-rollout/promise-global-predictions-and-v2-config-rollout",
+      description: "Observe dashboard for monitoring Core + SFR rollout metrics, shadow vs. live V1/V2 comparison.",
+      github: "https://github.com/shopify-playground/v2-prediction-rollout-dashboard",
+      category: "team",
+      created_by: "Mario Muniz",
+      tags: ["observability", "rollout", "dashboard", "v2-config"]
+    },
+    {
+      name: "Magellan Config V1/V2 Comparison",
+      url: "https://magellan-config-comparison.quick.shopify.io/",
+      description: "Interactive side-by-side comparison of Config Option C vs Option D during the V2 design phase. Includes voting, route testing, and AI assistant.",
+      github: "",
+      category: "team",
+      created_by: "Sagar Sidhu",
+      tags: ["config", "comparison", "design"]
+    },
+    {
+      name: "Bug Hunt",
+      url: "https://bughunt.quick.shopify.io/",
+      description: "Create bug hunt YAML files for running organized bug hunts. Has a companion skill at skills.quick.shopify.io.",
+      github: "",
+      category: "shared",
+      created_by: "Mori Ahmadi",
+      tags: ["testing", "bug-hunt", "qa"]
+    },
+    {
+      name: "Write",
+      url: "https://write.quick.shopify.io/",
+      description: "Markdown document editor with Slack notifications for comments. Great for tech docs, plans, and async decision-making.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["docs", "markdown", "collaboration"]
+    },
+    {
+      name: "Markdown Comments",
+      url: "https://markdown-comments.quick.shopify.io/",
+      description: "Markdown docs with inline commenting support. Used for implementation plans and team reviews.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["docs", "markdown", "review"]
+    },
+    {
+      name: "Skills Catalog",
+      url: "https://skills.quick.shopify.io/",
+      description: "Browse and discover available Quick skills. Includes bughunt, gsd-proposal, and more.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["skills", "catalog", "discovery"]
+    },
+    {
+      name: "OAuth Flow Helper",
+      url: "https://oauth-flow.quick.shopify.io/",
+      description: "Helper for testing OAuth flows during Quick site development.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["oauth", "auth", "development"]
+    },
+    {
+      name: "Delivery Predictions Funnel",
+      url: "https://delivery-predictions-funnel.quick.shopify.io/",
+      description: "Prediction funnel analysis dashboard. Tracks prediction volume, conversion, and coverage across the delivery predictions pipeline.",
+      github: "https://github.com/shopify-playground/st-data-science",
+      category: "team",
+      created_by: "Siraj Ali",
+      tags: ["funnel", "analysis", "dashboard", "data-science"]
+    },
+    {
+      name: "Barriers to Delivery Predictions",
+      url: "https://barriers-delivery-predictions.quick.shopify.io/",
+      description: "Visualizes barriers preventing delivery predictions by country. Shows 4% for US and 16% for EU based on analysis.",
+      github: "",
+      category: "team",
+      created_by: "Shwetha Shyam",
+      tags: ["analysis", "coverage", "barriers", "predictions"]
+    },
+    {
+      name: "DHM Metrics — Prediction Performance & Accuracy",
+      url: "https://dhm-metrics.quick.shopify.io/",
+      description: "Delivery prediction performance and accuracy dashboard. Queries monorail_delivery_prediction_model_request with surface dimension.",
+      github: "",
+      category: "team",
+      created_by: "Amanda Billingsley",
+      tags: ["dhm", "accuracy", "metrics", "monorail", "dashboard"]
+    },
+    {
+      name: "DHM Drift Monitoring",
+      url: "https://dhm-drift-monitoring.quick.shopify.io/",
+      description: "Delivery date data drift monitoring. Queries model_request for drift detection across prediction features.",
+      github: "",
+      category: "team",
+      created_by: "Amanda Billingsley",
+      tags: ["dhm", "drift", "monitoring", "data-quality"]
+    },
+    {
+      name: "Drift Detection Runs",
+      url: "https://delivery-date-drift-detection-stg.quick.shopify.io/",
+      description: "Delivery date drift detection run results. Uses drift monitoring target features sourced from model_request.",
+      github: "",
+      category: "team",
+      created_by: "Amanda Billingsley",
+      tags: ["dhm", "drift", "monitoring", "runs"]
+    },
+    {
+      name: "Impact Review Copilot",
+      url: "https://impact-review-copilot.quick.shopify.io/",
+      description: "Scans Slack, GitHub, and Vault to generate a contribution report for mastery cycle self-reviews.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["mastery", "review", "contributions", "self-review"]
+    },
+    {
+      name: "Chronicle",
+      url: "https://chronicle.quick.shopify.io/",
+      description: "Summarizes your GitHub contributions for impact reviews. Great for building your spotlight list.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["mastery", "github", "contributions", "self-review"]
+    },
+    {
+      name: "Radical Candor",
+      url: "https://radical-candor.quick.shopify.io/",
+      description: "Matches your self-review draft against ShopifyOS requirements for your level. Gives feedback on how to strengthen it.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["mastery", "review", "shopify-os", "self-review"]
+    },
+    {
+      name: "Mastery Feedback",
+      url: "https://mastery.quick.shopify.io/",
+      description: "Gives feedback on your mastery cycle draft. Helps polish your spotlights and growth unlock sections.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["mastery", "review", "feedback", "self-review"]
+    },
+    {
+      name: "Peer Review Copilot",
+      url: "https://peer-review-copilot.quick.shopify.io/",
+      description: "Helps write peer reviews for the mastery cycle. Guides structure and tone.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["mastery", "peer-review", "self-review"]
+    },
+    {
+      name: "Weekly Recap",
+      url: "https://weekly-recap.quick.shopify.io/",
+      description: "Weekly recaps and reminders tool. Useful for standup prep and tracking what you shipped.",
+      github: "",
+      category: "shared",
+      created_by: "Quick Team",
+      tags: ["productivity", "standup", "recap", "weekly"]
+    },
+    {
+      name: "Skill Decoder",
+      url: "https://skill-decoder.quick.shopify.io/",
+      description: "Transforms AI agent skill files into structured, human-readable playbooks with decision trees and practice exercises. Paste any skill or GitHub link.",
+      github: "",
+      category: "shared",
+      created_by: "Anderson Ferreira",
+      tags: ["skills", "playbook", "documentation", "ai"]
+    },
+    {
+      name: "AvaTax Migration Presentation",
+      url: "https://avatax-migration-preso.quick.shopify.io/",
+      description: "Presentation for the AvaTax to Shopify Tax migration project.",
+      github: "",
+      category: "shared",
+      created_by: "Talha Syed",
+      tags: ["taxes", "presentation", "migration"]
+    }
+  ];
+
+  async function init() {
+    try {
+      const user = await quick.id.waitForUser();
+      currentUser = user;
+      document.getElementById("userInfo").innerHTML = user.slackImageUrl
+        ? `<img src="${user.slackImageUrl}" alt=""> ${user.firstName}`
+        : user.firstName || user.email;
+      document.getElementById("fCreatedBy").value = user.fullName || "";
+    } catch (e) {
+      console.log("No user info available");
+    }
+
+    await seedIfEmpty();
+    await loadTools();
+    setupListeners();
+    saveFavourites(); // sync filter button visibility on load
+  }
+
+  async function seedIfEmpty() {
+    const existing = await tools.find();
+    const existingUrls = new Set(existing.map(t => t.url));
+    let added = 0;
+    for (const item of SEED_DATA) {
+      if (!existingUrls.has(item.url)) {
+        await tools.create(item);
+        added++;
+      }
+    }
+    if (added > 0) console.log(`Seeded ${added} new tools`);
+  }
+
+  async function loadTools() {
+    allTools = await tools.find();
+    buildOwnerFilter();
+    buildTagCloud();
+    render();
+  }
+
+  function buildOwnerFilter() {
+    const owners = [...new Set(allTools.map(t => t.created_by))].sort();
+    const select = document.getElementById("ownerFilter");
+    const current = select.value;
+    select.innerHTML = '<option value="">All owners</option>';
+    owners.forEach(o => {
+      const opt = document.createElement("option");
+      opt.value = o;
+      opt.textContent = o;
+      select.appendChild(opt);
+    });
+    select.value = current;
+  }
+
+  function buildTagCloud() {
+    // Tags are still on cards and searchable, just no top-level cloud
+  }
+
+  function toggleTag(tag) {
+    activeTag = activeTag === tag ? null : tag;
+    buildTagCloud();
+    render();
+  }
+
+  function getFilteredTools() {
+    const query = document.getElementById("searchInput").value.toLowerCase().trim();
+    const owner = document.getElementById("ownerFilter").value;
+
+    return allTools.filter(t => {
+      // Category filter
+      if (activeCategory === "favourites") { /* handled below */ }
+      else if (activeCategory !== "all" && t.category !== activeCategory) return false;
+
+      // Owner filter
+      if (owner && t.created_by !== owner) return false;
+
+      // Favourites filter
+      if (activeCategory === "favourites" && !favourites.has(t.id)) return false;
+
+      // Tag filter
+      if (activeTag && !(t.tags || []).includes(activeTag)) return false;
+
+      // Search
+      if (query) {
+        const haystack = [
+          t.name, t.description, t.created_by, t.url,
+          ...(t.tags || [])
+        ].join(" ").toLowerCase();
+        return haystack.includes(query);
+      }
+
+      return true;
+    });
+  }
+
+  function render() {
+    const filtered = getFilteredTools();
+    const teamTools = sortTools(filtered.filter(t => t.category === "team"));
+    const sharedTools = sortTools(filtered.filter(t => t.category === "shared"));
+    const contentEl = document.getElementById("content");
+
+    // Reset pages if they exceed available pages
+    const teamPages = Math.ceil(teamTools.length / pagination.team.perPage) || 1;
+    const sharedPages = Math.ceil(sharedTools.length / pagination.shared.perPage) || 1;
+    if (pagination.team.page > teamPages) pagination.team.page = 1;
+    if (pagination.shared.page > sharedPages) pagination.shared.page = 1;
+
+    if (filtered.length === 0) {
+      contentEl.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size:40px;">🔍</div>
+          <p>No tools match your filters.</p>
+        </div>`;
+      return;
+    }
+
+    let html = "";
+
+    if (teamTools.length > 0 && (activeCategory === "all" || activeCategory === "team" || activeCategory === "favourites")) {
+      const title = activeCategory === "favourites" ? "⭐ Favourited Team Tools" : "Delivery Predictions Tools";
+      html += renderSection(title, "team", teamTools);
+    }
+
+    if (sharedTools.length > 0 && (activeCategory === "all" || activeCategory === "shared" || activeCategory === "favourites")) {
+      const title = activeCategory === "favourites" ? "⭐ Favourited Shared Tools" : "Shared Tools";
+      html += renderSection(title, "shared", sharedTools);
+    }
+
+    contentEl.innerHTML = html;
+  }
+
+  function renderSection(title, type, items) {
+    const badgeClass = type === "team" ? "badge-team" : "badge-shared";
+    const badgeLabel = type === "team" ? "Team" : "Shared";
+    const isCollapsed = collapsed[type];
+    const chevron = isCollapsed ? "▶" : "▼";
+    const { page, perPage } = pagination[type];
+    const totalPages = Math.ceil(items.length / perPage) || 1;
+    const start = (page - 1) * perPage;
+    const pageItems = items.slice(start, start + perPage);
+
+    let paginationHtml = "";
+    if (items.length > 3) {
+      const pageButtons = [];
+      for (let i = 1; i <= totalPages; i++) {
+        pageButtons.push(
+          `<button class="page-btn ${i === page ? 'active-page' : ''}" onclick="setPage('${type}', ${i})">${i}</button>`
+        );
+      }
+      paginationHtml = `
+        <div class="pagination">
+          <button class="page-btn" onclick="setPage('${type}', ${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+          ${pageButtons.join("")}
+          <button class="page-btn" onclick="setPage('${type}', ${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+          <span class="page-info">${start + 1}–${Math.min(start + perPage, items.length)} of ${items.length}</span>
+          <select class="page-size-select" onchange="setPerPage('${type}', parseInt(this.value))">
+            ${[3, 6, 9, 12, 24].map(n => `<option value="${n}" ${n === perPage ? 'selected' : ''}>${n} per page</option>`).join("")}
+          </select>
+        </div>`;
+    }
+
+    return `
+      <div class="category-section">
+        <div class="category-header">
+          <button class="section-toggle" onclick="toggleCollapse('${type}')" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevron}</button>
+          <h2>${title}</h2>
+          <span class="category-badge ${badgeClass}">${badgeLabel}</span>
+          <span class="count-badge">${items.length} tool${items.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="section-body ${isCollapsed ? 'collapsed' : ''}">
+          <div class="card-grid">
+            ${pageItems.map(renderCard).join("")}
+          </div>
+          ${paginationHtml}
+        </div>
+      </div>`;
+  }
+
+  function renderCard(tool) {
+    const tags = (tool.tags || []).map(t =>
+      `<span class="tag ${activeTag === t ? 'active-tag' : ''}" onclick="toggleTag('${t}')">${t}</span>`
+    ).join("");
+
+    const githubLink = tool.github
+      ? `<a href="${tool.github}" target="_blank" title="GitHub repo">📂 Repo</a>`
+      : "";
+
+    const isOwner = currentUser && (
+      tool.created_by === currentUser.fullName ||
+      tool.created_by === currentUser.email
+    );
+    const canManage = isOwner || isAdmin();
+
+    const actions = canManage ? `
+      <div class="card-actions">
+        <button class="card-action-btn" onclick="editTool('${tool.id}')" title="Edit">✏️</button>
+        <button class="card-action-btn delete" onclick="deleteTool('${tool.id}')" title="Delete">🗑</button>
+      </div>` : "";
+
+    const isFav = favourites.has(tool.id);
+    const favClass = isFav ? "is-favourited" : "";
+    const starClass = isFav ? "is-fav" : "";
+    const starLabel = isFav ? "Remove from favourites" : "Add to favourites";
+
+    return `
+      <div class="card ${favClass}">
+        ${actions}
+        <div class="card-title">
+          <button class="fav-btn ${starClass}" onclick="toggleFav('${tool.id}')" title="${starLabel}">⭐</button>
+          <a href="${tool.url}" target="_blank">${tool.name}</a>
+        </div>
+        <div class="card-desc">${tool.description}</div>
+        <div class="card-meta">
+          <span class="meta-item">👤 ${tool.created_by}</span>
+          ${githubLink ? `<span class="meta-item">${githubLink}</span>` : ""}
+        </div>
+        <div class="card-tags">${tags}</div>
+      </div>`;
+  }
+
+  // Modal
+  function openModal(toolId) {
+    const overlay = document.getElementById("modalOverlay");
+    const form = document.getElementById("toolForm");
+    form.reset();
+    document.getElementById("editId").value = "";
+    document.getElementById("modalTitle").textContent = "Add a Tool";
+    document.getElementById("submitBtn").textContent = "Add Tool";
+
+    if (currentUser) {
+      document.getElementById("fCreatedBy").value = currentUser.fullName || "";
+    }
+
+    overlay.classList.add("open");
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById("modalOverlay").classList.remove("open");
+  }
+
+  async function editTool(id) {
+    const tool = allTools.find(t => t.id === id);
+    if (!tool) return;
+
+    document.getElementById("editId").value = id;
+    document.getElementById("fName").value = tool.name;
+    document.getElementById("fUrl").value = tool.url;
+    document.getElementById("fDesc").value = tool.description;
+    document.getElementById("fGithub").value = tool.github || "";
+    document.getElementById("fCategory").value = tool.category;
+    document.getElementById("fCreatedBy").value = tool.created_by;
+    document.getElementById("fTags").value = (tool.tags || []).join(", ");
+    document.getElementById("modalTitle").textContent = "Edit Tool";
+    document.getElementById("submitBtn").textContent = "Save Changes";
+    document.getElementById("modalOverlay").classList.add("open");
+  }
+
+  async function deleteTool(id) {
+    const tool = allTools.find(t => t.id === id);
+    if (!tool || !confirm(`Delete "${tool.name}"?`)) return;
+    await tools.delete(id);
+    await loadTools();
+  }
+
+  async function saveTool(e) {
+    e.preventDefault();
+
+    const rawTags = document.getElementById("fTags").value;
+    const tags = rawTags
+      .split(",")
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    const data = {
+      name: document.getElementById("fName").value.trim(),
+      url: document.getElementById("fUrl").value.trim(),
+      description: document.getElementById("fDesc").value.trim(),
+      github: document.getElementById("fGithub").value.trim(),
+      category: document.getElementById("fCategory").value,
+      created_by: document.getElementById("fCreatedBy").value.trim(),
+      tags
+    };
+
+    const editId = document.getElementById("editId").value;
+
+    // Check for duplicate URL (skip if editing the same tool)
+    const duplicate = allTools.find(t => t.url === data.url && t.id !== editId);
+    if (duplicate && !editId) {
+      alert(`A tool with this URL already exists: "${duplicate.name}". Please use a different URL or edit the existing entry.`);
+      return;
+    }
+
+    if (editId) {
+      await tools.update(editId, data);
+    } else {
+      await tools.create(data);
+    }
+
+    closeModal();
+    await loadTools();
+  }
+
+  function setupListeners() {
+    document.getElementById("searchInput").addEventListener("input", () => {
+      pagination.team.page = 1;
+      pagination.shared.page = 1;
+      render();
+    });
+    document.getElementById("ownerFilter").addEventListener("change", () => {
+      pagination.team.page = 1;
+      pagination.shared.page = 1;
+      render();
+    });
+    document.getElementById("sortSelect").addEventListener("change", (e) => {
+      currentSort = e.target.value;
+      render();
+    });
+
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeCategory = btn.dataset.category;
+        render();
+      });
+    });
+
+    // Real-time updates
+    tools.subscribe({
+      onCreate: () => loadTools(),
+      onUpdate: () => loadTools(),
+      onDelete: () => loadTools()
+    });
+  }
+
+  // Keyboard shortcut
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+
+  init();
+</script>
+</body>
+</html>
