@@ -146,7 +146,8 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn-secondary" onclick="openSyncModal()" id="syncBtn">🔄 Import Sites</button>
+      <button class="btn-secondary" onclick="openSyncModal()" id="syncBtn">🔄 Import from Directory</button>
+      <button class="btn-secondary" onclick="clearAllEntries()" id="clearBtn" style="display:none;color:var(--danger);border-color:var(--danger);">🗑 Clear All</button>
       <div class="user-info" id="userInfo"></div>
       <button class="btn-primary" onclick="openModal()">+ Add</button>
     </div>
@@ -195,7 +196,7 @@
 <div class="modal-overlay" id="syncOverlay" onclick="closeSyncModal(event)">
   <div class="modal" onclick="event.stopPropagation()" style="width:600px;">
     <h2>🔄 Import Team Sites from Quick Directory</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">This will scan the directory data and auto-add any sites created by Delivery Predictions team members.</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">This scans the directory JSON and matches the <code>last_modified_by</code> field (e.g. <code>firstname.lastname</code>) against all 32 Delivery Predictions team members. Ideally this runs as a daily job at 6AM — for now, paste manually.</p>
     <ol style="font-size:13px;color:var(--muted);margin-bottom:14px;padding-left:20px;line-height:1.8;">
       <li>Open <a href="https://directory.quick.shopify.io/directory.json" target="_blank" style="color:var(--accent)">directory.quick.shopify.io/directory.json</a> in a new tab</li>
       <li>Select all (<kbd>Cmd+A</kbd>) and copy (<kbd>Cmd+C</kbd>)</li>
@@ -261,25 +262,42 @@ const collapsed = { team: localStorage.getItem("col-team")==="true", shared: loc
 let favs = new Set(JSON.parse(localStorage.getItem("tool-favs") || "[]"));
 let sort = "newest";
 
-// Team member emails for auto-sync matching
-const TEAM_EMAILS = [
+// Team members: firstname.lastname — matches directory.json's modified_by / last_modified_by
+// which can be "firstname.lastname" or "firstname.lastname@shopify.com"
+const TEAM_HANDLES = [
   // Delivery Predictions (parent)
-  "janson.webster@shopify.com","jacques.krzepkowski@shopify.com","shwetha.shyam@shopify.com",
-  "durmus.karatay@shopify.com","ryan.creps@shopify.com","sandeep.sikka@shopify.com",
+  "janson.webster","jacques.krzepkowski","shwetha.shyam",
+  "durmus.karatay","ryan.creps","sandeep.sikka",
   // Platform
-  "atul.sharma@shopify.com","elijah.adeyale@shopify.com","jesse.li@shopify.com",
-  "jingxian.hou@shopify.com","joseph.carino@shopify.com","lovejesh.bangar@shopify.com",
-  "mario.muniz@shopify.com","peter.moon@shopify.com","ryan.wang@shopify.com",
-  "sagar.sidhu@shopify.com","trey.wilson@shopify.com",
+  "atul.sharma","elijah.adeyale","jesse.li",
+  "jingxian.hou","joseph.carino","lovejesh.bangar",
+  "mario.muniz","peter.moon","ryan.wang",
+  "sagar.sidhu","trey.wilson",
   // Experience
-  "charlie.morris@shopify.com","abraham.tabo@shopify.com","alexa.whitney@shopify.com",
-  "amanda.billingsley@shopify.com","andrew.johnson@shopify.com","christoflurp.sweeney@shopify.com",
-  "gourave.verma@shopify.com","josh.murray@shopify.com","mori.ahmadi@shopify.com",
-  "pedro.durek@shopify.com","ryan.aldred@shopify.com","sergio.garcia@shopify.com",
-  "sheri.soliman@shopify.com","umar.ahmed@shopify.com",
-  // Data (leads)
-  "siraj.ali@shopify.com"
+  "charlie.morris","abraham.tabo","alexa.whitney",
+  "amanda.billingsley","andrew.johnson","christoflurp.sweeney",
+  "gourave.verma","josh.murray","mori.ahmadi",
+  "pedro.durek","ryan.aldred","sergio.garcia",
+  "sheri.soliman","umar.ahmed",
+  // Data
+  "siraj.ali"
 ];
+
+// Normalize a modified_by value to firstname.lastname for matching
+function normalizeHandle(raw) {
+  if (!raw) return "";
+  return raw.toLowerCase().replace(/@shopify\.com$/i, "").trim();
+}
+
+function isTeamMember(modifiedBy) {
+  return TEAM_HANDLES.includes(normalizeHandle(modifiedBy));
+}
+
+// Pretty-print a handle as a display name
+function handleToName(handle) {
+  const h = normalizeHandle(handle);
+  return h.split(".").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
 
 const CAT = {
   analytics:     { icon:"📊", label:"Analytics" },
@@ -320,60 +338,51 @@ async function runImport() {
   status.textContent = `Processing ${sites.length} sites…`;
   const existing = await db.find();
   const existingUrls = new Set(existing.map(t => t.url));
-  let added = 0;
+  let added = 0, skipped = 0;
   for (const site of sites) {
-    const email = (site.modified_by || site.author || "").toLowerCase();
-    if (!TEAM_EMAILS.includes(email)) continue;
+    // Match on last_modified_by or modified_by — can be "firstname.lastname" or "firstname.lastname@shopify.com"
+    const rawAuthor = site.last_modified_by || site.modified_by || site.author || "";
+    if (!isTeamMember(rawAuthor)) { skipped++; continue; }
     const sub = site.subdomain || site.name || "";
+    if (!sub) continue;
     const url = `https://${sub}.quick.shopify.io/`;
     if (existingUrls.has(url)) continue;
+    // Skip PR previews, staging, test sites
     if (sub.match(/-(pr\d+|stg|staging|test|dev)$/i)) continue;
+    if (sub.match(/^(pr-|test-|staging-)/i)) continue;
+    const displayName = handleToName(rawAuthor);
     const name = (site.title || sub).replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
     await db.create({
       name, url,
       description: site.description || "",
       github: "", tool_cat: "development", team_tag: "",
-      created_by: site.modified_by_name || site.modified_by || email,
-      source: "auto"
+      created_by: displayName,
+      created_by_handle: normalizeHandle(rawAuthor),
+      source: "auto",
+      last_modified: site.last_modified || site.modified_at || ""
     });
     existingUrls.add(url);
     added++;
   }
   localStorage.setItem("last-sync", new Date().toISOString());
-  status.textContent = added > 0 ? `✅ Imported ${added} new team sites!` : "✅ No new team sites found.";
+  status.textContent = added > 0
+    ? `✅ Imported ${added} team sites! (${skipped} non-team sites skipped)`
+    : `✅ No new team sites found. (${skipped} non-team skipped)`;
   await loadTools();
   showSyncBanner();
 }
 
-// Seed data
-const SEED = [
-  { name:"Magellan Config V2 Editor", url:"https://delivery-prediction-config-editor.quick.shopify.io/", description:"Visualize, validate, diff, and create PRs for Magellan prediction configs.", github:"https://github.com/shopify-playground/magellan-config-v2-editor", tool_cat:"configuration", team_tag:"platform", created_by:"Elijah Adeyale", source:"manual" },
-  { name:"Predictions Search Utility", url:"https://delivery-prediction-search-utility.lit.shopify.io/", description:"3D globe visualizer, per-country accuracy breakdowns, BigQuery query builder, DHM observability.", github:"https://github.com/Shopify/streamlit-service", tool_cat:"analytics", team_tag:"platform", created_by:"Elijah Adeyale", source:"manual" },
-  { name:"V2 Prediction Rollout Dashboard", url:"https://observe.shopify.io/d/promise-global-predictions-rollout/promise-global-predictions-and-v2-config-rollout", description:"Core + SFR rollout metrics, shadow vs. live V1/V2 comparison.", github:"https://github.com/shopify-playground/v2-prediction-rollout-dashboard", tool_cat:"observability", team_tag:"platform", created_by:"Mario Muniz", source:"manual" },
-  { name:"Magellan Config Comparison", url:"https://magellan-config-comparison.quick.shopify.io/", description:"Interactive V1/V2 config comparison with voting, route testing, and AI assistant.", github:"", tool_cat:"configuration", team_tag:"platform", created_by:"Sagar Sidhu", source:"manual" },
-  { name:"Delivery Predictions Funnel", url:"https://delivery-predictions-funnel.quick.shopify.io/", description:"Prediction funnel analysis — volume, conversion, and coverage.", github:"https://github.com/shopify-playground/st-data-science", tool_cat:"analytics", team_tag:"data", created_by:"Siraj Ali", source:"manual" },
-  { name:"Barriers to Delivery Predictions", url:"https://barriers-delivery-predictions.quick.shopify.io/", description:"Barriers preventing predictions by country (4% US, 16% EU).", github:"", tool_cat:"analytics", team_tag:"product-management", created_by:"Shwetha Shyam", source:"manual" },
-  { name:"DHM Metrics — Performance & Accuracy", url:"https://dhm-metrics.quick.shopify.io/", description:"Prediction performance and accuracy. Queries monorail model_request.", github:"", tool_cat:"analytics", team_tag:"data", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"DHM Drift Monitoring", url:"https://dhm-drift-monitoring.quick.shopify.io/", description:"Data drift monitoring for delivery prediction features.", github:"", tool_cat:"observability", team_tag:"data", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"Drift Detection Runs", url:"https://delivery-date-drift-detection-stg.quick.shopify.io/", description:"Drift detection run results from model_request features.", github:"", tool_cat:"observability", team_tag:"data", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"Bug Hunt", url:"https://bughunt.quick.shopify.io/", description:"Create bug hunt YAML files. Companion skill at skills.quick.shopify.io.", github:"", tool_cat:"development", team_tag:"experience", created_by:"Mori Ahmadi", source:"manual" },
-  { name:"Write", url:"https://write.quick.shopify.io/", description:"Markdown docs with Slack comment notifications.", github:"", tool_cat:"productivity", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Markdown Comments", url:"https://markdown-comments.quick.shopify.io/", description:"Markdown with inline commenting for plans and reviews.", github:"", tool_cat:"productivity", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Skills Catalog", url:"https://skills.quick.shopify.io/", description:"Browse and discover Quick skills (bughunt, gsd-proposal, etc.).", github:"", tool_cat:"development", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Impact Review Copilot", url:"https://impact-review-copilot.quick.shopify.io/", description:"Scans Slack/GitHub/Vault to generate contribution reports for mastery reviews.", github:"", tool_cat:"productivity", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Chronicle", url:"https://chronicle.quick.shopify.io/", description:"Summarizes your GitHub contributions for impact reviews.", github:"", tool_cat:"productivity", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Weekly Recap", url:"https://weekly-recap.quick.shopify.io/", description:"Weekly recaps and reminders for standup prep.", github:"", tool_cat:"productivity", team_tag:"", created_by:"Quick Team", source:"manual" },
-  { name:"Skill Decoder", url:"https://skill-decoder.quick.shopify.io/", description:"Transforms AI skill files into structured human-readable playbooks.", github:"", tool_cat:"development", team_tag:"", created_by:"Anderson Ferreira", source:"manual" },
-  { name:"Magellan Config What-If", url:"https://magellan-config-what-if.quick.shopify.io/", description:"What-if scenario tool for Magellan config changes. Visualize impact before deploying.", github:"", tool_cat:"configuration", team_tag:"platform", created_by:"Janson Webster", source:"manual" },
-  { name:"Delivery Prediction Reports", url:"https://delivery-prediction-reports.quick.shopify.io/", description:"Prediction reporting dashboard. Replaces the old LookerStudio report.", github:"", tool_cat:"analytics", team_tag:"platform", created_by:"Joseph Carino", source:"manual" },
-  { name:"Delivery Prediction PDP Module", url:"https://delivery-prediction.quick.shopify.io/", description:"Interactive PDP prediction module preview. Test configs: enabled, days, cost, brand, selling plan.", github:"", tool_cat:"development", team_tag:"experience", created_by:"Pedro Durek", source:"manual" },
-  { name:"Cart Delivery Predictions", url:"https://cart-delivery-predictions.quick.shopify.io/", description:"Cart-level delivery predictions analysis dashboard.", github:"", tool_cat:"analytics", team_tag:"experience", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"Shipping Carrier Onboarding", url:"https://shipping-carrier-onboarding.quick.shopify.io/", description:"Carrier onboarding skill interface with data form and instructions.", github:"https://github.com/shopify-playground/shipping-carrier-onboarding-skill", tool_cat:"development", team_tag:"experience", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"Push Insights Review", url:"https://push-insights-quick-review.quick.shopify.io/", description:"Push insights review tool for shipping strategy.", github:"", tool_cat:"analytics", team_tag:"experience", created_by:"Amanda Billingsley", source:"manual" },
-  { name:"Global Predictions Dashboard", url:"https://data-portal.quick.shopify.io/dashboards/ec50f9b96bc5.html", description:"Data Portal dashboard — global prediction metrics (last 24h).", github:"", tool_cat:"analytics", team_tag:"platform", created_by:"Sagar Sidhu", source:"manual" },
-  { name:"Config Helper (Legacy)", url:"https://delivery-predition-config-helper.quick.shopify.io/", description:"Early config viewer built during V2 design phase.", github:"", tool_cat:"configuration", team_tag:"platform", created_by:"Sagar Sidhu", source:"manual" },
-  { name:"Duoc Utilities", url:"https://duoc.quick.shopify.io/", description:"Collection of useful utility functions. Shared by Mori as a must-have for the team.", github:"", tool_cat:"development", team_tag:"", created_by:"Quick Team", source:"manual" },
-];
+// Admin: clear all entries
+async function clearAllEntries() {
+  if (!isAdmin()) return;
+  if (!confirm("Delete ALL entries from the directory? This cannot be undone.")) return;
+  if (!confirm("Are you really sure? This wipes the entire database.")) return;
+  const existing = await db.find();
+  for (const t of existing) { await db.delete(t.id); }
+  await loadTools();
+}
+
+// No seed data — directory import is the sole source of truth
 
 async function init() {
   try {
@@ -382,31 +391,15 @@ async function init() {
     document.getElementById("userInfo").innerHTML = u.slackImageUrl ? `<img src="${u.slackImageUrl}"> ${u.firstName}` : u.firstName||u.email;
     document.getElementById("fOwner").value = u.fullName || "";
   } catch(e) {}
-  await seed();
   await loadTools();
   setupListeners();
   saveFavs();
   showSyncBanner();
+  // Show admin-only clear button
+  if (isAdmin()) document.getElementById("clearBtn").style.display = "";
 }
 
-async function seed() {
-  const existing = await db.find();
-  const byUrl = {};
-  existing.forEach(t => byUrl[t.url] = t);
-  let added=0, updated=0;
-  for (const s of SEED) {
-    const ex = byUrl[s.url];
-    if (!ex) {
-      await db.create(s);
-      added++;
-    } else if (!ex.team_tag && s.team_tag) {
-      // Backfill team_tag, tool_cat, source on old entries
-      await db.update(ex.id, { team_tag: s.team_tag, tool_cat: s.tool_cat || ex.tool_cat, source: s.source || ex.source || "manual" });
-      updated++;
-    }
-  }
-  if (added||updated) console.log(`Seeded ${added} new, updated ${updated} existing`);
-}
+
 
 async function loadTools() {
   all = await db.find();
