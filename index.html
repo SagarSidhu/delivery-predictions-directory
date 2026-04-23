@@ -146,7 +146,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn-secondary" onclick="syncFromDirectory()" id="syncBtn">🔄 Sync from Directory</button>
+      <button class="btn-secondary" onclick="openSyncModal()" id="syncBtn">🔄 Import Sites</button>
       <div class="user-info" id="userInfo"></div>
       <button class="btn-primary" onclick="openModal()">+ Add</button>
     </div>
@@ -155,7 +155,7 @@
 
 <div class="container">
   <div class="auto-banner" id="autoBanner" style="display:none;">
-    🤖 <strong id="autoCount">0</strong> sites auto-discovered from <a href="https://directory.quick.shopify.io/" target="_blank" style="color:var(--cyan);">directory.quick.shopify.io</a> by matching team member emails. <span id="lastSync" style="margin-left:auto;font-size:11px;"></span>
+    🤖 <strong id="autoCount">0</strong> sites auto-imported by matching team member emails. <span id="lastSync" style="margin-left:auto;font-size:11px;"></span>
   </div>
 
   <div class="stats-bar" id="statsBar"></div>
@@ -191,7 +191,28 @@
   <div id="content"><div class="loading">Loading…</div></div>
 </div>
 
-<!-- Modal -->
+<!-- Import Modal -->
+<div class="modal-overlay" id="syncOverlay" onclick="closeSyncModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:600px;">
+    <h2>🔄 Import Team Sites from Quick Directory</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">This will scan the directory data and auto-add any sites created by Delivery Predictions team members.</p>
+    <ol style="font-size:13px;color:var(--muted);margin-bottom:14px;padding-left:20px;line-height:1.8;">
+      <li>Open <a href="https://directory.quick.shopify.io/directory.json" target="_blank" style="color:var(--accent)">directory.quick.shopify.io/directory.json</a> in a new tab</li>
+      <li>Select all (<kbd>Cmd+A</kbd>) and copy (<kbd>Cmd+C</kbd>)</li>
+      <li>Paste below and click <strong>Import</strong></li>
+    </ol>
+    <div class="fg">
+      <textarea id="syncPaste" rows="6" placeholder='Paste the JSON array here…' style="font-family:monospace;font-size:11px;"></textarea>
+    </div>
+    <div id="syncStatus" style="font-size:13px;margin-bottom:10px;min-height:20px;"></div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeSyncModal()">Cancel</button>
+      <button class="btn-primary" onclick="runImport()">🚀 Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h2 id="modalTitle">Add a Tool</h2>
@@ -283,41 +304,45 @@ function sortItems(items) {
   });
 }
 
-// Auto-sync: fetch directory.json and filter by team emails
-async function syncFromDirectory() {
-  const btn = document.getElementById("syncBtn");
-  btn.textContent = "⏳ Syncing…"; btn.disabled = true;
-  try {
-    const res = await fetch("https://directory.quick.shopify.io/directory.json");
-    const sites = await res.json();
-    const existing = await db.find();
-    const existingUrls = new Set(existing.map(t => t.url));
-    let added = 0;
-    for (const site of sites) {
-      const email = (site.modified_by || site.author || "").toLowerCase();
-      if (!TEAM_EMAILS.includes(email)) continue;
-      const url = `https://${site.subdomain}.quick.shopify.io/`;
-      if (existingUrls.has(url)) continue;
-      // Skip PR previews and staging
-      if (site.subdomain.match(/-(pr\d+|stg|staging|test|dev)$/i)) continue;
-      const name = (site.title || site.subdomain).replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
-      await db.create({
-        name, url,
-        description: site.description || "",
-        github: "", tool_cat: "development", team_tag: "",
-        created_by: site.modified_by_name || site.modified_by || email,
-        source: "auto"
-      });
-      added++;
-    }
-    localStorage.setItem("last-sync", new Date().toISOString());
-    btn.textContent = added > 0 ? `✅ Added ${added}` : "✅ Up to date";
-    await loadTools();
-  } catch(e) {
-    console.error("Sync failed:", e);
-    btn.textContent = "❌ Sync failed (need to be on the site directly)";
+// Import: user pastes directory.json content, we filter by team emails
+function openSyncModal() {
+  document.getElementById("syncOverlay").classList.add("open");
+}
+function closeSyncModal(e) { if(e&&e.target!==e.currentTarget)return; document.getElementById("syncOverlay").classList.remove("open"); }
+
+async function runImport() {
+  const raw = document.getElementById("syncPaste").value.trim();
+  const status = document.getElementById("syncStatus");
+  if (!raw) { status.textContent = "Paste the JSON first."; return; }
+  let sites;
+  try { sites = JSON.parse(raw); } catch(e) { status.textContent = "Invalid JSON. Copy the full contents of directory.quick.shopify.io/directory.json"; return; }
+  if (!Array.isArray(sites)) { status.textContent = "Expected a JSON array."; return; }
+  status.textContent = `Processing ${sites.length} sites…`;
+  const existing = await db.find();
+  const existingUrls = new Set(existing.map(t => t.url));
+  let added = 0;
+  for (const site of sites) {
+    const email = (site.modified_by || site.author || "").toLowerCase();
+    if (!TEAM_EMAILS.includes(email)) continue;
+    const sub = site.subdomain || site.name || "";
+    const url = `https://${sub}.quick.shopify.io/`;
+    if (existingUrls.has(url)) continue;
+    if (sub.match(/-(pr\d+|stg|staging|test|dev)$/i)) continue;
+    const name = (site.title || sub).replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+    await db.create({
+      name, url,
+      description: site.description || "",
+      github: "", tool_cat: "development", team_tag: "",
+      created_by: site.modified_by_name || site.modified_by || email,
+      source: "auto"
+    });
+    existingUrls.add(url);
+    added++;
   }
-  setTimeout(() => { btn.textContent = "🔄 Sync from Directory"; btn.disabled = false; }, 3000);
+  localStorage.setItem("last-sync", new Date().toISOString());
+  status.textContent = added > 0 ? `✅ Imported ${added} new team sites!` : "✅ No new team sites found.";
+  await loadTools();
+  showSyncBanner();
 }
 
 // Seed data
@@ -357,10 +382,21 @@ async function init() {
 
 async function seed() {
   const existing = await db.find();
-  const urls = new Set(existing.map(t=>t.url));
-  let n=0;
-  for (const s of SEED) { if (!urls.has(s.url)) { await db.create(s); n++; } }
-  if (n) console.log(`Seeded ${n}`);
+  const byUrl = {};
+  existing.forEach(t => byUrl[t.url] = t);
+  let added=0, updated=0;
+  for (const s of SEED) {
+    const ex = byUrl[s.url];
+    if (!ex) {
+      await db.create(s);
+      added++;
+    } else if (!ex.team_tag && s.team_tag) {
+      // Backfill team_tag, tool_cat, source on old entries
+      await db.update(ex.id, { team_tag: s.team_tag, tool_cat: s.tool_cat || ex.tool_cat, source: s.source || ex.source || "manual" });
+      updated++;
+    }
+  }
+  if (added||updated) console.log(`Seeded ${added} new, updated ${updated} existing`);
 }
 
 async function loadTools() {
